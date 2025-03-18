@@ -8,6 +8,7 @@ import random
 from loss import Loss
 from dataloader import load_data
 import os
+from DDC import DDC
 # os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 # Synthetic3d
 # Prokaryotic
@@ -21,6 +22,14 @@ import os
 # Caltech-3V
 # Caltech-4V
 # Caltech-5V
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# 初始化DDC模块
+input_dim = 128
+n_hidden = 100
+n_clusters = 10
+ddc = DDC(input_dim, n_hidden, n_clusters).to(device)
+
 Dataname = 'Hdigit'
 parser = argparse.ArgumentParser(description='train')
 parser.add_argument('--dataset', default=Dataname)
@@ -29,12 +38,11 @@ parser.add_argument("--temperature_f", default=0.5)
 parser.add_argument("--learning_rate", default=0.0003)
 parser.add_argument("--weight_decay", default=0.)
 parser.add_argument("--workers", default=8)
-parser.add_argument("--rec_epochs", default=200)
+parser.add_argument("--rec_epochs", default=0)
 parser.add_argument("--fine_tune_epochs", default=100)
 parser.add_argument("--low_feature_dim", default=512)
 parser.add_argument("--high_feature_dim", default=128)
 args = parser.parse_args()
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 if args.dataset == "MNIST-USPS":
     args.fine_tune_epochs = 100
@@ -115,8 +123,12 @@ def fine_tune(epoch):
             xs[v] = xs[v].to(device)
         optimizer.zero_grad()
         xrs, _, hs = model(xs)
-        commonz, S = model.GCFAgg(xs)
+        commonz, S = model.TMCNF(xs)
+        # 在这里加入DDC和聚类级的互信息最大化
+        output, hidden = ddc(commonz)
         loss_list = []
+        # 计算DDC损失函数
+        loss_list.append(criterion.DDCLoss(output, hidden, n_clusters))
         for v in range(view):
             loss_list.append(criterion.Structure_guided_Contrastive_Loss(hs[v], commonz, S))
             loss_list.append(mes(xs[v], xrs[v]))
@@ -131,6 +143,7 @@ if not os.path.exists('./models'):
 model = TMCN(view, dims, args.low_feature_dim, args.high_feature_dim, device)
 print(model)
 model = model.to(device)
+
 optimizer = torch.optim.Adam(model.parameters(), lr=args.learning_rate, weight_decay=args.weight_decay)
 criterion = Loss(args.batch_size, args.temperature_f, device).to(device)
 epoch = 1

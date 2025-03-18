@@ -320,7 +320,7 @@ class TMCN(nn.Module):
     
     
     def TMCNF(self, xs):
-        S = torch.zeros([xs[0].size(0),xs[0].size(0)], dtype=torch.float).cuda()
+        S = torch.zeros([xs[0].size(0),xs[0].size(0)], dtype=torch.float)#.cuda()
         ze = []
         for v in range(self.view):
             x = xs[v]
