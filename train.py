@@ -124,11 +124,13 @@ def fine_tune(epoch):
         optimizer.zero_grad()
         xrs, _, hs = model(xs)
         commonz, S = model.TMCNF(xs)
-        # 在这里加入DDC和聚类级的互信息最大化
+        # 在这里加入DDC
         output, hidden = ddc(commonz)
         loss_list = []
         # 计算DDC损失函数
         loss_list.append(criterion.DDCLoss(output, hidden, n_clusters))
+        # TODO 聚类级的互信息最大化
+
         for v in range(view):
             loss_list.append(criterion.Structure_guided_Contrastive_Loss(hs[v], commonz, S))
             loss_list.append(mes(xs[v], xrs[v]))
@@ -152,6 +154,7 @@ while epoch <= args.rec_epochs:
     epoch += 1
 while epoch <= args.rec_epochs + args.fine_tune_epochs:
     fine_tune(epoch)
+    valid(model, device, dataset, view, data_size, class_num)
     if epoch == args.rec_epochs + args.fine_tune_epochs:
         valid(model, device, dataset, view, data_size, class_num)
         state = model.state_dict()

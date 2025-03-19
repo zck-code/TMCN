@@ -4,6 +4,7 @@ from scipy.optimize import linear_sum_assignment
 from torch.utils.data import DataLoader
 import numpy as np
 import torch
+from DDC import*
 
 def cluster_acc(y_true, y_pred):
     y_true = y_true.astype(np.int64)
@@ -65,6 +66,9 @@ def valid(model, device, dataset, view, data_size, class_num):
     print('---------train over---------')
     print('Clustering results:')
     kmeans = KMeans(n_clusters=class_num, n_init=100)
+    # 改为DDC聚类
+    ddc = DDC(128, 100, 10)
+    y_pred = ddc(commonZ)
     y_pred = kmeans.fit_predict(commonZ)
     nmi, ari, acc, pur = evaluate(labels_vector, y_pred)
     print('ACC = {:.4f} NMI = {:.4f} PUR={:.4f} ARI = {:.4f}'.format(acc, nmi, pur, ari))

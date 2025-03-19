@@ -1,6 +1,8 @@
 import torch as th
-
+from sklearn.metrics import confusion_matrix
+from scipy.optimize import linear_sum_assignment
 import kernel
+import numpy as np
 
 
 def triu(X):
@@ -93,3 +95,21 @@ def fused_kernel(net, cfg):
     dist = kernel.cdist(net.fused, net.fused)
     sigma = net.fused_kernel_width(inputs=net.fused, distances=dist, assignments=net.output)
     return {"fused_kernel": kernel.kernel_from_distance_matrix(dist, sigma=sigma)}
+
+
+def ordered_cmat(labels, pred):
+    """
+    Compute the confusion matrix and accuracy corresponding to the best cluster-to-class assignment.
+
+    :param labels: Label array
+    :type labels: np.array
+    :param pred: Predictions array
+    :type pred: np.array
+    :return: Accuracy and confusion matrix
+    :rtype: Tuple[float, np.array]
+    """
+    cmat = confusion_matrix(labels, pred)
+    ri, ci = linear_sum_assignment(-cmat)
+    ordered = cmat[np.ix_(ri, ci)]
+    acc = np.sum(np.diag(ordered))/np.sum(ordered)
+    return acc, ordered
